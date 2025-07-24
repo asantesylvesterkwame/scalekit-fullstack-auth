@@ -1,1 +1,0 @@
-# scalekit-fullstack-auth
