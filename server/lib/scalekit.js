@@ -1,9 +1,12 @@
-import { env } from "../constants/env";
-
 const { Scalekit } = require("@scalekit-sdk/node");
+const dotenv = require("dotenv");
 
-export let scalekit = new Scalekit(
-  env.SCALEKIT_ENVIRONMENT_URL,
-  env.SCALEKIT_CLIENT_ID,
-  env.SCALEKIT_CLIENT_SECRET
+dotenv.config();
+
+const scalekit = new Scalekit(
+  process.env.SCALEKIT_ENVIRONMENT_URL,
+  process.env.SCALEKIT_CLIENT_ID,
+  process.env.SCALEKIT_CLIENT_SECRET
 );
+
+module.exports = scalekit;
