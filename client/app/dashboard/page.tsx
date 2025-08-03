@@ -43,16 +43,15 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     if (isLoggingOut) return;
-
     setIsLoggingOut(true);
     try {
-      await AuthService.logout();
-      // AuthService.logout() handles the redirect
+      AuthService.logout();
     } catch (error) {
-      console.error("Logout failed:", error);
-      // Force redirect even if logout fails
+      console.log(error);
+    } finally {
+      setIsLoggingOut(true);
       window.location.href = "/";
     }
   };

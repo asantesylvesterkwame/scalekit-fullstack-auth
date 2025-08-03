@@ -59,20 +59,10 @@ class AuthService {
   }
 
   // Logout user
-  static async logout(): Promise<void> {
-    try {
-      console.log("Initiating logout...");
-      // Call logout endpoint - server will handle ScaleKit logout and cleanup
-      await API_URL.get("/auth/logout");
-    } catch (error) {
-      console.error(
-        "Logout API call failed, but continuing with local cleanup:",
-        error
-      );
-    } finally {
-      // Always redirect to home after logout attempt
-      window.location.href = "/";
-    }
+  static logout(): void {
+    console.log("Initiating logout...");
+    // Direct redirect to logout endpoint - let the server handle ScaleKit logout
+    window.location.href = `${API_URL.defaults.baseURL}/auth/logout`;
   }
 
   // Get current user (alias for checkAuth)

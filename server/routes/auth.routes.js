@@ -4,9 +4,8 @@ const { refreshTokenStore } = require("../middleware/auth.middleware");
 const { encrypt } = require("../utils/encryption");
 const authRoute = require("express").Router();
 
-const redirectUri =
-  process.env.REDIRECT_URI || "http://localhost:3000/callback";
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+const redirectUri = "http://localhost:3000/callback";
+const frontendUrl = "http://localhost:3000";
 
 authRoute.get("/", async (req, res) => {
   try {
@@ -104,38 +103,36 @@ authRoute.get("/me", verifyToken, (req, res) => {
   });
 });
 
-authRoute.get("/logout", (req, res) => {
-  const idToken = req.session.idToken;
-  const userId = req.session.userId;
-  const postLogoutRedirectUri = frontendUrl;
+authRoute.get("/logout", async (req, res) => {
+  try {
+    const idToken = req.session.idToken;
+    const userId = req.session.userId;
+    const postLogoutRedirectUri = frontendUrl;
 
-  // Clear refresh token from store
-  if (userId) {
-    refreshTokenStore.delete(userId);
-  }
-
-  // Clear session
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Session destruction error:", err);
+    // Clear refresh token from store
+    if (userId) {
+      refreshTokenStore.delete(userId);
     }
-  });
 
-  // Clear cookies
-  res.clearCookie("accessToken");
-  res.clearCookie("userId");
-  res.clearCookie("connect.sid"); // Default session cookie name
+    // Clear session
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session destruction error:", err);
+      }
+    });
 
-  if (idToken) {
-    try {
-      const logoutUrl = scalekit.getLogoutUrl(idToken, postLogoutRedirectUri);
-      res.redirect(logoutUrl);
-    } catch (error) {
-      console.error("Logout URL generation failed:", error);
-      res.redirect(postLogoutRedirectUri);
-    }
-  } else {
-    res.redirect(postLogoutRedirectUri);
+    // Clear cookies
+    res.clearCookie("accessToken");
+    res.clearCookie("userId");
+    res.clearCookie("connect.sid");
+    
+    const logoutUrl = await scalekit.getLogoutUrl(
+      idToken,
+      postLogoutRedirectUri
+    );
+    res.redirect(logoutUrl);
+  } catch (error) {
+    console.error("Logout URL generation failed:", error);
   }
 });
 

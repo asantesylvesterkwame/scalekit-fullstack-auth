@@ -13,7 +13,11 @@ const port = process.env.PORT || 8081;
 
 // Enhanced CORS configuration
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3000/",
+    "https://neuralfeed.scalekit.dev",
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
 };
