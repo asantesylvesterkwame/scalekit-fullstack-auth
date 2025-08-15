@@ -68,8 +68,7 @@ class AuthService {
   // Logout user
   static async logout(): Promise<void> {
     try {
-      const response = await API_URL.get(`/auth/logout`);
-      return response.data;
+      await API_URL.get(`/auth/logout`);
     } catch (error) {
       console.error("Logout failed:", error);
     }
