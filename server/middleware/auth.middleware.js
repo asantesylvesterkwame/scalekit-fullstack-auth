@@ -1,5 +1,6 @@
 const scalekit = require("../lib/scalekit");
 const { decrypt, encrypt } = require("../utils/encryption");
+const { addLog } = require("../utils/logger");
 
 // In-memory refresh token store (replace with Redis/DB in prod)
 const refreshTokenStore = new Map();
@@ -8,6 +9,11 @@ const verifyToken = async (req, res, next) => {
   try {
     const encryptedAccessToken = req.cookies.accessToken;
     if (!encryptedAccessToken) {
+      addLog({
+        level: "warn",
+        message: "No access token provided",
+        ip: req.ip,
+      });
       return res.status(401).json({
         authenticated: false,
         message: "No access token provided",
@@ -20,7 +26,12 @@ const verifyToken = async (req, res, next) => {
       accessToken = decrypt(encryptedAccessToken);
       if (!accessToken) throw new Error("Decryption returned null");
     } catch (decryptError) {
-      console.error("Token decryption failed:", decryptError);
+      addLog({
+        level: "error",
+        message: "Token decryption failed",
+        error: decryptError.message,
+        ip: req.ip,
+      });
       res.clearCookie("accessToken");
       return res.status(401).json({
         authenticated: false,
@@ -36,7 +47,12 @@ const verifyToken = async (req, res, next) => {
       isValid = tokenValidation?.valid === true;
       user = tokenValidation?.user ?? null;
     } catch (validationError) {
-      console.error("Token validation failed:", validationError);
+      addLog({
+        level: "error",
+        message: "Token validation failed",
+        error: validationError.message,
+        ip: req.ip,
+      });
       isValid = false;
     }
 
@@ -47,7 +63,12 @@ const verifyToken = async (req, res, next) => {
 
       if (storedRefreshToken) {
         try {
-          console.log("Attempting to refresh token for user:", userId);
+          addLog({
+            level: "info",
+            message: "Attempting to refresh token",
+            userId,
+            ip: req.ip,
+          });
           const refreshResult = await scalekit.refreshAccessToken(
             storedRefreshToken
           );
@@ -93,12 +114,21 @@ const verifyToken = async (req, res, next) => {
 
           req.user = refreshedUser || req.session.user;
 
-          console.log(
-            "Token refreshed successfully for user:",
-            (refreshedUser && refreshedUser.email) || "unknown"
-          );
+          addLog({
+            level: "info",
+            message: "Token refreshed successfully",
+            userId,
+            email: refreshedUser?.email,
+            ip: req.ip,
+          });
         } catch (refreshError) {
-          console.error("Token refresh failed:", refreshError);
+          addLog({
+            level: "error",
+            message: "Token refresh failed",
+            error: refreshError.message,
+            userId: req.session.userId,
+            ip: req.ip,
+          });
           // Cleanup stale auth state
           res.clearCookie("accessToken");
           res.clearCookie("userId");
@@ -111,10 +141,12 @@ const verifyToken = async (req, res, next) => {
           });
         }
       } else {
-        console.log(
-          "No refresh token available for user:",
-          req.session.userId || req.cookies.userId
-        );
+        addLog({
+          level: "warn",
+          message: "No refresh token available",
+          userId: req.session.userId || req.cookies.userId,
+          ip: req.ip,
+        });
         return res.status(401).json({
           authenticated: false,
           message: "Session expired. Please login again.",
@@ -123,11 +155,23 @@ const verifyToken = async (req, res, next) => {
     } else {
       // Valid token path
       req.user = user || req.session.user;
+      addLog({
+        level: "info",
+        message: "Token validated successfully",
+        userId: user.id,
+        email: user.email,
+        ip: req.ip,
+      });
     }
 
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
+    addLog({
+      level: "error",
+      message: "Auth middleware error",
+      error: error.message,
+      ip: req.ip,
+    });
     res.status(500).json({
       authenticated: false,
       message: "Authentication verification failed",

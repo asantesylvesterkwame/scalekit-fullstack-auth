@@ -17,6 +17,13 @@ interface AuthResponse {
   message?: string;
 }
 
+interface AuthLog {
+  level: string;
+  message: string;
+  timestamp: string;
+  [key: string]: any;
+}
+
 class AuthService {
   // Check if user is authenticated - handles both authenticated and non-authenticated states
   static async checkAuth(): Promise<AuthResponse> {
@@ -59,10 +66,13 @@ class AuthService {
   }
 
   // Logout user
-  static logout(): void {
-    console.log("Initiating logout...");
-    // Direct redirect to logout endpoint - let the server handle ScaleKit logout
-    window.location.href = `${API_URL.defaults.baseURL}/auth/logout`;
+  static async logout(): Promise<void> {
+    try {
+      const response = await API_URL.get(`/auth/logout`);
+      return response.data;
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   }
 
   // Get current user (alias for checkAuth)
@@ -93,7 +103,17 @@ class AuthService {
       return false;
     }
   }
+
+  static async getAuthLogs(): Promise<AuthLog[]> {
+    try {
+      const response = await API_URL.get("/auth/logs");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch auth logs:", error);
+      return [];
+    }
+  }
 }
 
 export default AuthService;
-export type { User, AuthResponse };
+export type { User, AuthResponse, AuthLog };

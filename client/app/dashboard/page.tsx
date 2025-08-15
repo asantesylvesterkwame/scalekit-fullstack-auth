@@ -1,25 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import {
   Shield,
   LogOut,
   CheckCircle,
   Loader2,
   AlertCircle,
+  RefreshCw,
+  Monitor,
 } from "lucide-react";
-import AuthService, { User } from "@/services/auth.service";
+import AuthService, { User, AuthLog } from "@/services/auth.service";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [logs, setLogs] = useState<AuthLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isFetchingLogs, setIsFetchingLogs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     checkAuthentication();
+    fetchLogs();
   }, []);
 
   const checkAuthentication = async () => {
@@ -29,13 +34,10 @@ export default function DashboardPage() {
 
       if (authResponse.authenticated && authResponse.user) {
         setUser(authResponse.user);
-        console.log("Dashboard loaded for user:", authResponse.user.email);
       } else {
-        console.log("User not authenticated, redirecting to home...");
         router.push("/");
       }
     } catch (error) {
-      console.error("Dashboard authentication check failed:", error);
       setError("Failed to verify authentication. Redirecting to home...");
       setTimeout(() => router.push("/"), 2000);
     } finally {
@@ -43,16 +45,27 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = () => {
-    if (isLoggingOut) return;
+  const fetchLogs = async () => {
+    setIsFetchingLogs(true);
+    try {
+      const authLogs = await AuthService.getAuthLogs();
+      setLogs(authLogs);
+    } catch (error) {
+      console.error("Failed to fetch auth logs", error);
+    } finally {
+      setIsFetchingLogs(false);
+    }
+  };
+
+  const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      AuthService.logout();
+      const response: any = await AuthService.logout();
+      window.location.assign(response);
     } catch (error) {
       console.log(error);
     } finally {
-      setIsLoggingOut(true);
-      window.location.href = "/";
+      setIsLoggingOut(false);
     }
   };
 
@@ -260,17 +273,68 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Success Message */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="font-semibold text-blue-800 mb-2">
-            🎯 Authentication Demo Complete!
-          </h3>
-          <p className="text-blue-700">
-            This demonstrates a complete ScaleKit authentication flow with
-            proper token management, automatic refresh, and secure session
-            handling. The user data shown here was retrieved from your ScaleKit
-            identity provider after successful authentication.
-          </p>
+        {/* Auth Logs Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-3">
+              <Monitor className="w-6 h-6 text-gray-700" />
+              <h3 className="font-semibold text-gray-900">Auth Logs</h3>
+            </div>
+            <button
+              onClick={fetchLogs}
+              disabled={isFetchingLogs}
+              className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+            >
+              {isFetchingLogs ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              <span>Refresh</span>
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Level
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Message
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Timestamp
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {logs.map((log, index) => (
+                  <tr key={index}>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          log.level === "error"
+                            ? "bg-red-100 text-red-800"
+                            : log.level === "warn"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {log.level}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                      {log.message}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

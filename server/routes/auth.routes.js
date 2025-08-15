@@ -2,6 +2,7 @@ const { verifyToken } = require("../middleware/auth.middleware");
 const scalekit = require("../lib/scalekit");
 const { refreshTokenStore } = require("../middleware/auth.middleware");
 const { encrypt } = require("../utils/encryption");
+const { addLog, getLogs } = require("../utils/logger");
 const authRoute = require("express").Router();
 
 const redirectUri = "http://localhost:3000/callback";
@@ -13,10 +14,15 @@ authRoute.get("/", async (req, res) => {
       scopes: ["openid", "profile", "email", "offline_access"],
     };
 
+    addLog({ level: "info", message: "Initiating authorization" });
     const authorizationUrl = scalekit.getAuthorizationUrl(redirectUri, options);
     res.redirect(authorizationUrl);
   } catch (error) {
-    console.log(error);
+    addLog({
+      level: "error",
+      message: "Authorization failed",
+      error: error.message,
+    });
     res.status(500).json({
       error: error.message,
       message: "An error occurred authenticating user",
@@ -28,6 +34,12 @@ authRoute.post("/callback", async (req, res) => {
   const { code, error, error_description } = req.body;
 
   if (error) {
+    addLog({
+      level: "error",
+      message: "Callback error",
+      error,
+      error_description,
+    });
     return res.redirect(
       `${frontendUrl}?error=${encodeURIComponent(
         error
@@ -81,15 +93,20 @@ authRoute.post("/callback", async (req, res) => {
       sameSite: "strict",
     });
 
-    console.log("User authenticated successfully:", {
-      id: user.id,
+    addLog({
+      level: "info",
+      message: "User authenticated successfully",
+      userId: user.id,
       email: user.email,
-      name: user.name,
     });
 
     res.redirect(`${frontendUrl}/dashboard`);
   } catch (err) {
-    console.error("Error exchanging code:", err);
+    addLog({
+      level: "error",
+      message: "Error exchanging code",
+      error: err.message,
+    });
     res.redirect(`${frontendUrl}?error=authentication_failed`);
   }
 });
@@ -109,6 +126,8 @@ authRoute.get("/logout", async (req, res) => {
     const userId = req.session.userId;
     const postLogoutRedirectUri = frontendUrl;
 
+    addLog({ level: "info", message: "User logout", userId });
+
     // Clear refresh token from store
     if (userId) {
       refreshTokenStore.delete(userId);
@@ -117,7 +136,11 @@ authRoute.get("/logout", async (req, res) => {
     // Clear session
     req.session.destroy((err) => {
       if (err) {
-        console.error("Session destruction error:", err);
+        addLog({
+          level: "error",
+          message: "Session destruction error",
+          error: err.message,
+        });
       }
     });
 
@@ -125,15 +148,24 @@ authRoute.get("/logout", async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("userId");
     res.clearCookie("connect.sid");
-    
-    const logoutUrl = await scalekit.getLogoutUrl(
-      idToken,
-      postLogoutRedirectUri
-    );
+
+    const logoutUrl = await scalekit.getLogoutUrl({
+      idTokenHint: idToken,
+      postLogoutRedirectUri: postLogoutRedirectUri,
+    });
     res.redirect(logoutUrl);
   } catch (error) {
-    console.error("Logout URL generation failed:", error);
+    addLog({
+      level: "error",
+      message: "Logout URL generation failed",
+      error: error.message,
+    });
   }
+});
+
+authRoute.get("/logs", verifyToken, (req, res) => {
+  const logs = getLogs();
+  res.status(200).json(logs);
 });
 
 module.exports = authRoute;
