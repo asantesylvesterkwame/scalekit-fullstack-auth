@@ -153,7 +153,7 @@ authRoute.get("/logout", async (req, res) => {
       idTokenHint: idToken,
       postLogoutRedirectUri: postLogoutRedirectUri,
     });
-    res.redirect(logoutUrl);
+    res.status(200).json(logoutUrl);
   } catch (error) {
     addLog({
       level: "error",

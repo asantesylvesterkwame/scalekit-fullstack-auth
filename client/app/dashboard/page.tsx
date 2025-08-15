@@ -60,11 +60,12 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await AuthService.logout();
+      const response: any = await AuthService.logout();
+      window.location.assign(response);
     } catch (error) {
       console.log(error);
     } finally {
-      setIsLoggingOut(true);
+      setIsLoggingOut(false);
     }
   };
 
